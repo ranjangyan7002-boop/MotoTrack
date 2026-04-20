@@ -1,0 +1,50 @@
+{
+  "entities": {
+    "Ride": {
+      "title": "Ride",
+      "description": "A motorcycle ride session with telemetry data.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The UID of the user who owns the ride." },
+        "startTime": { "type": "number", "description": "Timestamp when ride started." },
+        "endTime": { "type": "number", "description": "Timestamp when ride ended." },
+        "distance": { "type": "number", "description": "Total distance traveled in meters." },
+        "maxSpeed": { "type": "number", "description": "Maximum speed reached in m/s." },
+        "avgSpeed": { "type": "number", "description": "Average speed in m/s." },
+        "status": { "type": "string", "enum": ["recording", "completed"] },
+        "maxLeanAngle": { "type": "number" },
+        "efficiencyScore": { "type": "number" },
+        "speedDistribution": { "type": "array" },
+        "snapshotUrl": { "type": "string" }
+      },
+      "required": ["userId", "startTime", "status"]
+    },
+    "LocationPoint": {
+      "title": "LocationPoint",
+      "description": "A single GPS coordinate with telemetry data.",
+      "type": "object",
+      "properties": {
+        "rideId": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "speed": { "type": "number" },
+        "accuracy": { "type": "number" },
+        "altitude": { "type": "number" },
+        "heading": { "type": "number" },
+        "leanAngle": { "type": "number" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["rideId", "latitude", "longitude", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/rides/{rideId}": {
+      "schema": "Ride",
+      "description": "Collection of all ride sessions."
+    },
+    "/rides/{rideId}/points/{pointId}": {
+      "schema": "LocationPoint",
+      "description": "Sub-collection of points for a specific ride."
+    }
+  }
+}

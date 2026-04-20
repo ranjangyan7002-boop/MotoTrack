@@ -1,0 +1,5 @@
+{
+  "name": "MotoTrack Pro",
+  "description": "High-accuracy telemetry and real-time tracking for motorcycle riders.",
+  "requestFramePermissions": ["geolocation"]
+}

@@ -1,0 +1,64 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny Catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Ping check for connection test
+    match /system/ping {
+      allow read: if true;
+    }
+
+    // Common Helpers
+    function isSignedIn() { return request.auth != null; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    // Rides Collection
+    match /rides/{rideId} {
+      // Authorization Helpers
+      function isOwner() {
+        return isSignedIn() && (
+          (resource != null && resource.data.userId == request.auth.uid) ||
+          (resource == null && request.resource.data.userId == request.auth.uid)
+        );
+      }
+
+      // Read access
+      allow get: if isSignedIn() && existing().get('userId', '') == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.get('userId', '') == request.auth.uid;
+
+      // Creation
+      allow create: if isSignedIn() && 
+                       isValidId(rideId) && 
+                       incoming().get('userId', '') == request.auth.uid;
+
+      // Updating: Only the owner can update. 
+      allow update: if isSignedIn() && 
+                       existing().get('userId', '') == request.auth.uid &&
+                       incoming().get('userId', '') == request.auth.uid;
+
+      // Deleting: Owner can delete their own rides.
+      allow delete: if isSignedIn() && 
+                       existing().get('userId', '') == request.auth.uid;
+
+      // Points Sub-collection
+      match /points/{pointId} {
+        // Read points: Require userId match directly on the point for secure listing.
+        allow read: if isSignedIn() && resource.data.get('userId', '') == request.auth.uid;
+        
+        // Create points: Must be the owner.
+        allow create: if isSignedIn() && incoming().get('userId', '') == request.auth.uid;
+        
+        // Update/Delete points: Must be the owner.
+        allow update, delete: if isSignedIn() && (
+          existing().get('userId', '') == request.auth.uid ||
+          get(/databases/$(database)/documents/rides/$(rideId)).data.get('userId', '') == request.auth.uid
+        );
+      }
+    }
+  }
+}
