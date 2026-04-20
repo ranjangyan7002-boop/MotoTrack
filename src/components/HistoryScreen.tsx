@@ -3,6 +3,7 @@ import { History, ChevronRight, Trash2 } from 'lucide-react';
 import { Ride } from '../types';
 import { formatDistance, formatDuration } from '../lib/utils';
 import { motion } from 'motion/react';
+import { ConfirmationModal } from './ConfirmationModal';
 
 interface HistoryScreenProps {
   rides: Ride[];
@@ -29,14 +30,28 @@ const RideSkeleton = () => (
 
 export const HistoryScreen: FC<HistoryScreenProps> = ({ rides, isLoading, onClose, onSelectRide, onDeleteRide, onShowMonthly }) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const handleDeleteConfirm = async () => {
+    if (!confirmDeleteId) return;
+    const id = confirmDeleteId;
+    setConfirmDeleteId(null);
+    setDeletingId(id);
+    try {
+      await onDeleteRide(id);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: '100%' }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: '100%' }}
-      className="absolute inset-0 bg-bento-bg z-[9999] flex flex-col p-safe pt-6 overflow-hidden"
-    >
+    <>
+      <motion.div
+        initial={{ opacity: 0, x: '100%' }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: '100%' }}
+        className="absolute inset-0 bg-bento-bg z-[9999] flex flex-col p-safe pt-6 overflow-hidden"
+      >
       <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-6 px-4 md:px-6 shrink-0 gap-2">
         <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase flex items-center gap-3">
           <History size={32} className="text-bento-orange" />
@@ -79,17 +94,10 @@ export const HistoryScreen: FC<HistoryScreenProps> = ({ rides, isLoading, onClos
               {/* Delete Action - Isolated from main click area */}
               <div className="absolute top-4 right-4 z-[50]">
                 <button 
-                  onClick={async (e) => {
+                  onClick={(e) => {
                     e.stopPropagation();
                     if (deletingId) return;
-                    if (window.confirm('Permanently delete this ride log?')) {
-                      setDeletingId(ride.id);
-                      try {
-                        await onDeleteRide(ride.id);
-                      } finally {
-                        setDeletingId(null);
-                      }
-                    }
+                    setConfirmDeleteId(ride.id);
                   }}
                   disabled={deletingId === ride.id}
                   className={`
@@ -159,5 +167,16 @@ export const HistoryScreen: FC<HistoryScreenProps> = ({ rides, isLoading, onClos
         )}
       </div>
     </motion.div>
-  );
-};
+
+    <ConfirmationModal
+      isOpen={!!confirmDeleteId}
+      title="Purge Ride Log?"
+      message="This will permanently delete the sessions metadata and all associated GPS telemetry points. This action cannot be undone."
+      confirmLabel="Delete Log"
+      cancelLabel="Cancel"
+      onConfirm={handleDeleteConfirm}
+      onCancel={() => setConfirmDeleteId(null)}
+    />
+  </>
+);
+}

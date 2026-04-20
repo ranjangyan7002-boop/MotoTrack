@@ -29,6 +29,7 @@ export default function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [showMonthlyStats, setShowMonthlyStats] = useState(false);
   const [deletedRideIds, setDeletedRideIds] = useState<Set<string>>(new Set());
+  const [deleteSuccessId, setDeleteSuccessId] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [showMobileMap, setShowMobileMap] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
@@ -557,15 +558,21 @@ export default function App() {
           }}
           onDeleteRide={async (rideId) => {
             if (!user) return;
+            console.log(`Initiating deletion for ${rideId}`);
             try {
               // 1. Add to local blacklist to hide from UI instantly
               setDeletedRideIds(prev => new Set(Array.from(prev).concat(rideId)));
               
               // 2. Delete from Cloud
               await firebaseService.deleteRide(rideId, user.uid);
+              console.log(`Cloud deletion successful for ${rideId}`);
               
               // 3. Final state cleanup once cloud action completes
               setRides(prev => prev.filter(r => r.id !== rideId));
+              
+              // 4. Show success pulse/notification
+              setDeleteSuccessId(rideId);
+              setTimeout(() => setDeleteSuccessId(null), 3000);
             } catch (e) {
               console.error("Failed to delete ride:", e);
               // Rollback local hidden state if delete failed
@@ -574,7 +581,9 @@ export default function App() {
                 next.delete(rideId);
                 return next;
               });
-              alert("Failed to delete ride from cloud. Please check permissions and try again.");
+              
+              const errMsg = e instanceof Error ? e.message : "Unknown error";
+              alert(`Deletion Failed: ${errMsg}\n\nPlease verify your connection and try again.`);
             }
           }}
           onShowMonthly={() => {
@@ -593,6 +602,18 @@ export default function App() {
           }}
         />
       )}
+
+      {/* Success Notification - Minimal & Clean */}
+      <motion.div 
+        initial={{ opacity: 0, y: 50 }}
+        animate={{ opacity: deleteSuccessId ? 1 : 0, y: deleteSuccessId ? 0 : 50 }}
+        className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[10001] pointer-events-none"
+      >
+        <div className="bg-green-500 text-white px-6 py-3 rounded-2xl font-black tracking-widest uppercase text-xs shadow-2xl flex items-center gap-3 italic">
+          <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
+          Ride Log Purged Successfully
+        </div>
+      </motion.div>
     </div>
   );
 }
